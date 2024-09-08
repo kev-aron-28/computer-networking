@@ -1,0 +1,42 @@
+# Ignore object files, compiled binaries, and libraries
+*.o
+*.out
+*.a
+*.so
+*.exe
+
+# Ignore compiled binaries
+a.out
+*.out
+*.exe
+
+# Ignore temporary files created by editors
+*~
+*.swp
+*.swo
+*.tmp
+
+# Ignore dependency and build configuration files
+*.d
+*.dSYM/
+*.log
+
+# Ignore compiled libraries
+*.lib
+*.dll
+
+# Ignore build directories
+/build/
+/bin/
+/lib/
+/obj/
+/debug/
+/release/
+
+# Ignore IDE-specific files
+.vscode/
+*.code-workspace
+.idea/
+*.iml
+*.cbp      # Code::Blocks project files
+*.project  # Eclipse project files
