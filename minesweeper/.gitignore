@@ -1,0 +1,51 @@
+# Ignore object files and executable binaries
+*.o
+*.out
+*.exe
+
+# Ignore compiled dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Ignore debugging files
+*.dSYM/
+*.stackdump
+
+# Ignore dependency files created by GCC
+*.d
+
+# Ignore logs and temp files
+*.log
+*.tmp
+*.bak
+
+# Ignore build directories
+/build/
+/dist/
+/bin/
+/obj/
+
+# Ignore editor/IDE specific files
+*.swp
+*.swo
+.vscode/
+.idea/
+*.code-workspace
+
+# Ignore CMake generated files
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+
+# Ignore autotools generated files
+/aclocal.m4
+/autom4te.cache
+/compile
+/config.*
+/depcomp
+/install-sh
+/ltmain.sh
+/missing
+/stamp-h1
