@@ -46,6 +46,18 @@ int main(int argc, char const *argv[])
   }
 
   char buffer[1024] = { 0 };
+  
+  int difficulty;
+
+  printf("Choose difficulty (1: Easy, 2: Medium, 3: Hard): ");
+  
+  scanf("%d", &difficulty);
+
+  sprintf(buffer, "%d", difficulty);
+
+  send(clientSocketDescriptor, buffer, strlen(buffer), 0);
+
+  memset(buffer, 0, sizeof(buffer));
 
   dataReadFromServer = read(clientSocketDescriptor, buffer, 1024 - 1);
 
@@ -55,6 +67,7 @@ int main(int argc, char const *argv[])
 
   while(1) {
     int row, col, isMarked;
+
     printf("ROW COL ISMARKED: \n");
 
     scanf("%d %d %d", &row, &col, &isMarked);
@@ -78,6 +91,8 @@ int main(int argc, char const *argv[])
       }
 
       printf("%s\n", tab);
+
+      memset(tab, 0, sizeof(tab));
     } else {
       printf("Server didn't send data\n");
     }

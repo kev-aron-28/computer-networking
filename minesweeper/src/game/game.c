@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <time.h>
 
 void initGame(Game *game, int difficulty)
 {
@@ -42,32 +43,55 @@ void initBoard(Game *game)
   {
     for (int j = 0; j < game->width; j++)
     {
-      game->board[i][j].isMine = (rand() % 5 == 0);
+      game->board[i][j].isMine = 0;
       game->board[i][j].isRevealed = 0;
       game->board[i][j].totalNeighborMines = 0;
       game->board[i][j].isMarked = 0;
     }
   }
 
+  placeMinesOnBoard(game);
+
+  countNeighborMinesForEachCell(game);
+}
+
+void countNeighborMinesForEachCell(Game *game) {
   for (int i = 0; i < game->height; i++)
-  {
-    for (int j = 0; j < game->width; j++)
     {
-      if (game->board[i][j].isMine)
+      for (int j = 0; j < game->width; j++)
       {
-        for (int x = -1; x <= 1; x++)
+        if (game->board[i][j].isMine)
         {
-          for (int y = -1; y <= 1; y++)
+          for (int x = -1; x <= 1; x++)
           {
-            int row = i + x;
-            int col = j + y;
-            if (row >= 0 && row < game->height && col >= 0 && col < game->width && !(x == 0 && y == 0))
+            for (int y = -1; y <= 1; y++)
             {
-              game->board[row][col].totalNeighborMines += 1;
+              int row = i + x;
+              int col = j + y;
+              if (row >= 0 && row < game->height && col >= 0 && col < game->width && !(x == 0 && y == 0))
+              {
+                game->board[row][col].totalNeighborMines += 1;
+              }
             }
           }
         }
       }
+    }
+}
+
+void placeMinesOnBoard(Game *game) {
+  int minesPlaced = 0;
+
+  srand(time(NULL));
+
+  while (minesPlaced < game->totalMines) {
+    int i = rand() % game->height;
+    int j = rand() % game->width;
+
+    if (!game->board[i][j].isMine)
+    {
+      game->board[i][j].isMine = 1;
+      minesPlaced++;
     }
   }
 }

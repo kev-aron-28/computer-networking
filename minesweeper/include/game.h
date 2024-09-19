@@ -41,4 +41,8 @@ int isWinMessage(char * msg);
 
 int isLostMessage(char *msg);
 
+void placeMinesOnBoard(Game *game);
+
+void countNeighborMinesForEachCell(Game *game);
+
 #endif

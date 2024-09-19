@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 // Socket related
 #include <sys/socket.h>
 #include <asm-generic/socket.h>
@@ -23,9 +24,10 @@ int main(int argc, char const *argv[])
 
   socklen_t addressLength = sizeof(serverAddress);
 
-  serverDescriptor  = socket(AF_INET, SOCK_STREAM, 0);
+  serverDescriptor = socket(AF_INET, SOCK_STREAM, 0);
 
-  if(serverDescriptor < 0) {
+  if (serverDescriptor < 0)
+  {
     perror("Socket creation failed");
 
     exit(EXIT_FAILURE);
@@ -35,17 +37,19 @@ int main(int argc, char const *argv[])
   serverAddress.sin_addr.s_addr = INADDR_ANY;
   serverAddress.sin_port = htons(PORT);
 
-  int serverBinding = bind(serverDescriptor, (struct sockaddr *) &serverAddress, sizeof(serverAddress));
+  int serverBinding = bind(serverDescriptor, (struct sockaddr *)&serverAddress, sizeof(serverAddress));
 
-  if(serverBinding < 0) {
+  if (serverBinding < 0)
+  {
     perror("Binding server to socket failed");
-    
+
     exit(EXIT_FAILURE);
   }
 
   int isServerListing = listen(serverDescriptor, QUEUE_LEN);
 
-  if(isServerListing < 0) {
+  if (isServerListing < 0)
+  {
     perror("Server failed to listen on port");
 
     exit(EXIT_FAILURE);
@@ -53,33 +57,53 @@ int main(int argc, char const *argv[])
 
   printf("Server is listening on port %d\n", PORT);
 
-  Game game;
+  while (1)
+  {
+    clientSocketRequest = accept(serverDescriptor, (struct sockaddr *)&serverAddress, &addressLength);
 
-  initGame(&game, 1);
-
-  printBoard(&game);
-
-  while(1) {
-    clientSocketRequest = accept(serverDescriptor, (struct sockaddr*) &serverAddress, &addressLength);
-
-    printf("CLIENT CONNECTED \n");
-
-    if(clientSocketRequest < 0) {
+    if (clientSocketRequest < 0)
+    {
       perror("Failed to accept request");
 
       exit(EXIT_FAILURE);
     }
 
-    char * initialStateBoard = serializeBoard(&game);
-    
+    printf("CLIENT CONNECTED \n");
+
+    char buffer[1024] = {0};
+
+    dataFromClient = read(clientSocketRequest, buffer, 1024 - 1);
+
+    if (dataFromClient <= 0)
+    {
+      printf("CLIENT DISCONNECTED \n");
+
+      break;
+    }
+
+    int difficulty = atoi(buffer);
+
+    printf("DIFFICULTY %d \n", difficulty);
+
+    Game game;
+
+    initGame(&game, difficulty);
+
+    char *initialStateBoard = serializeBoard(&game);
+
     send(clientSocketRequest, initialStateBoard, strlen(initialStateBoard), 0);
 
-    while (1) {
-      char buffer[1024] = { 0 };
-      
-      dataFromClient = read(clientSocketRequest, buffer, 1024 - 1); 
+    time_t startTimeOfClient = time(NULL);
 
-      if(dataFromClient <= 0) {
+    while (1)
+    {
+
+      memset(buffer, 0, sizeof(buffer));
+
+      dataFromClient = read(clientSocketRequest, buffer, 1024 - 1);
+
+      if (dataFromClient <= 0)
+      {
         printf("CLIENT DISCONNECTED \n");
 
         break;
@@ -89,28 +113,53 @@ int main(int argc, char const *argv[])
 
       sscanf(buffer, "%d %d %d", &clientRow, &clientColumn, &isMarked);
 
-      if(isMarked) {
+      if (isMarked)
+      {
         setMarkedCell(&game, clientRow, clientColumn);
-
-      } else if(isMovementAMine(&game, clientRow, clientColumn)) {
+      }
+      else if (isMovementAMine(&game, clientRow, clientColumn))
+      {
         char *gameOverMessage = "GAME OVER";
 
         send(clientSocketRequest, gameOverMessage, strlen(gameOverMessage), 0);
- 
+
+        time_t endTime = time(NULL);
+
+        double timeTaken = difftime(endTime, startTimeOfClient);
+
+        FILE *recordFile = fopen("records.txt", "a");
+        
+        fprintf(recordFile, "Time taken: %.2f seconds\n", timeTaken);
+        
+        fclose(recordFile);
+
         break;
-      } else {
+      }
+      else
+      {
         proccessMovement(&game, clientRow, clientColumn);
       }
 
-      if(hasPlayerWon(&game)) {
+      if (hasPlayerWon(&game))
+      {
         char *winGameMessage = "You won the game";
 
         send(clientSocketRequest, winGameMessage, strlen(winGameMessage), 0);
+
+        time_t endTime = time(NULL);
+
+        double timeTaken = difftime(endTime, startTimeOfClient);
+
+        FILE *recordFile = fopen("./records.txt", "a");
         
+        fprintf(recordFile, "Time taken: %.2f seconds\n", timeTaken);
+        
+        fclose(recordFile);
+
         break;
       }
-      
-      char * updatedBoard =  serializeBoard(&game);
+
+      char *updatedBoard = serializeBoard(&game);
 
       send(clientSocketRequest, updatedBoard, strlen(updatedBoard), 0);
     }
