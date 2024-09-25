@@ -37,7 +37,6 @@
 CMakeFiles/
 CMakeCache.txt
 cmake_install.cmake
-Makefile
 
 # Ignore autotools generated files
 /aclocal.m4
