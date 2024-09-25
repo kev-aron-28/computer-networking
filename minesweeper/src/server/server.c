@@ -89,6 +89,8 @@ int main(int argc, char const *argv[])
 
     initGame(&game, difficulty);
 
+    printBoard(&game);
+
     char *initialStateBoard = serializeBoard(&game);
 
     send(clientSocketRequest, initialStateBoard, strlen(initialStateBoard), 0);
@@ -140,7 +142,7 @@ int main(int argc, char const *argv[])
         proccessMovement(&game, clientRow, clientColumn);
       }
 
-      if (hasPlayerWon(&game))
+      if (hasPlayerWon(&game) || hasPlayerMarkedAllMines(&game))
       {
         char *winGameMessage = "You won the game";
 

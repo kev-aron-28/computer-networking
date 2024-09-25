@@ -37,6 +37,8 @@ int isMovementInsideBoard(Game *game, int x, int y);
 
 int hasPlayerWon(Game *game);
 
+int hasPlayerMarkedAllMines(Game *game);
+
 int isWinMessage(char * msg);
 
 int isLostMessage(char *msg);
