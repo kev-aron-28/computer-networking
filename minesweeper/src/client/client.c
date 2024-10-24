@@ -16,7 +16,6 @@ int main(int argc, char const *argv[])
 
   struct sockaddr_in serverAddress;
 
-
   clientSocketDescriptor = socket(AF_INET, SOCK_STREAM, 0);
 
   if(clientSocketDescriptor < 0) {

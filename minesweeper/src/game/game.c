@@ -67,7 +67,9 @@ void countNeighborMinesForEachCell(Game *game) {
             for (int y = -1; y <= 1; y++)
             {
               int row = i + x;
+
               int col = j + y;
+              
               if (row >= 0 && row < game->height && col >= 0 && col < game->width && !(x == 0 && y == 0))
               {
                 game->board[row][col].totalNeighborMines += 1;
@@ -86,11 +88,13 @@ void placeMinesOnBoard(Game *game) {
 
   while (minesPlaced < game->totalMines) {
     int i = rand() % game->height;
+
     int j = rand() % game->width;
 
     if (!game->board[i][j].isMine)
     {
       game->board[i][j].isMine = 1;
+
       minesPlaced++;
     }
   }
@@ -99,10 +103,12 @@ void placeMinesOnBoard(Game *game) {
 void printBoard(Game *game)
 {
   printf("  ");
+
   for (int col = 0; col < game->width; col++)
   {
     printf("%d\t", col);
   }
+
   printf("\n");
 
   for (int i = 0; i < game->height; i++)
@@ -118,6 +124,9 @@ void printBoard(Game *game)
       {
         printf("<|>\t");
       }
+      else if(game->board[i][j].isMine) {
+        printf("M\t");
+      }
       else
       {
         printf(".\t");
@@ -130,13 +139,17 @@ void printBoard(Game *game)
 char *serializeBoard(Game *game)
 {
   static char boardState[4096] = {0};
+
   memset(boardState, 0, sizeof(boardState));
 
   strncat(boardState, "  ", 3);
+
   for (int col = 0; col < game->width; col++)
   {
     char colIndex[4];
+
     sprintf(colIndex, "%d\t", col);
+
     strncat(boardState, colIndex, sizeof(colIndex));
   }
   strncat(boardState, "\n", 2);
@@ -144,18 +157,23 @@ char *serializeBoard(Game *game)
   for (int i = 0; i < game->height; i++)
   {
     char rowIndex[4];
+
     sprintf(rowIndex, "%d ", i);
+
     strncat(boardState, rowIndex, sizeof(rowIndex));
 
     for (int j = 0; j < game->width; j++)
     {
       Cell currentCell = game->board[i][j];
+
       char cell[4];
 
       if (currentCell.isRevealed)
       {
         sprintf(cell, "%d", currentCell.totalNeighborMines);
+
         strncat(boardState, cell, sizeof(cell));
+
         strncat(boardState, "\t", 2);
       }
       else if (currentCell.isMarked)
@@ -189,7 +207,9 @@ void proccessMovement(Game *game, int x, int y)
       for (int j = -1; j <= 1; j++)
       {
         int newX = x + i;
+
         int newY = y + j;
+        
         if (newX >= 0 && newX < game->height && newY >= 0 && newY < game->width)
         {
           proccessMovement(game, newX, newY);
@@ -248,8 +268,26 @@ int hasPlayerWon(Game *game)
       }
     }
   }
-
   return 1;
+}
+
+int hasPlayerMarkedAllMines(Game *game) {
+  int minesMarkedSoFar = 0;
+
+  for (int i = 0; i < game->height; i++)
+  {
+    for (int j = 0; j < game->width; j++)
+    {
+      if (game->board[i][j].isMine && game->board[i][j].isMarked)
+      {
+        minesMarkedSoFar++;
+      }
+    }
+  }
+
+  if(minesMarkedSoFar == game->totalMines) return 1;
+
+  return 0;
 }
 
 int isWinMessage(char *msg) {
