@@ -27,6 +27,7 @@ typedef struct
 typedef struct
 {
     Message messages[MAX_MESSAGES];
+    char activeUsers[1024];
     int message_count;
     pthread_mutex_t *mutex;
 } SharedData;
@@ -34,10 +35,10 @@ typedef struct
 typedef struct
 {
     int sockFileDescriptor;
+    int chatFileDescriptor;
     SharedData *shared_data;
 } ThreadData;
 
-// GLobal stuff -_-
 WINDOW *msg_win;
 WINDOW *input_win;
 WINDOW *active_users_win;
@@ -46,7 +47,18 @@ struct sockaddr_in server_chat_address;
 
 char *username;
 
-pthread_mutex_t message_mutex = PTHREAD_MUTEX_INITIALIZER; // Mutex to protect shared resources
+pthread_mutex_t message_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void draw_active_users_window(WINDOW *active_users_win, const char *users)
+{
+    werase(active_users_win);
+    box(active_users_win, 0, 0);
+    mvwprintw(active_users_win, 1, 1, "Active Users");
+
+    mvwprintw(active_users_win, 2, 1, "%s", users);
+
+    wrefresh(active_users_win);
+}
 
 void draw_input_window(WINDOW *input_win, const char *prompt)
 {
@@ -138,6 +150,51 @@ void *receive_messages(void *arg)
     return NULL;
 }
 
+void *receive_active_users(void *arg)
+{
+    ThreadData *data = (ThreadData *)arg;
+
+    SharedData *shared_data = data->shared_data;
+
+    int sockFileDescriptor;
+
+    if ((sockFileDescriptor = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+    {
+        perror("Failed to create socket");
+        exit(EXIT_FAILURE);
+    }
+
+    socklen_t addressLength = sizeof(server_chat_address);
+
+    Packet packet = {
+        .type = 3,
+    };
+
+    while (1)
+    {   
+
+        sleep(1);
+
+        sendPacket(sockFileDescriptor, &server_chat_address, &packet);
+
+        Packet userList;
+
+        int bytes = recvfrom(sockFileDescriptor, &userList, sizeof(Packet), 0,
+                             (struct sockaddr *)&server_chat_address, &addressLength);
+        
+        if (bytes < 0)
+        {
+            perror("RECEIVING FAILED");
+            continue;
+        }
+
+        strncpy(shared_data->activeUsers, userList.data, sizeof(shared_data->activeUsers));
+        
+    }
+
+    return NULL;
+}
+
 void *repaint_messages_screen(void *arg)
 {
     SharedData *shared_data = (SharedData *)arg;
@@ -152,12 +209,18 @@ void *repaint_messages_screen(void *arg)
     return NULL;
 }
 
-void draw_active_users_window(WINDOW *active_users_win)
+void *repaint_userlist_screen(void *arg)
 {
-    werase(active_users_win); // Clear the active users window
-    box(active_users_win, 0, 0);
-    mvwprintw(active_users_win, 1, 1, "Active Users"); // Header for the active users window
-    wrefresh(active_users_win);
+    SharedData *shared_data = (SharedData *)arg;
+
+    while (1)
+    {
+        sleep(2);
+
+        draw_active_users_window(active_users_win, shared_data->activeUsers);
+    }
+
+    return NULL;
 }
 
 void build_user_interface()
@@ -279,17 +342,32 @@ int main(int argc, char *argv[])
 
     sendPacket(serverFileDescriptor, &server_chat_address, &packet);
 
+    Packet userList;
+
+    socklen_t addressLength = sizeof(server_chat_address);
+
+    int bytes = recvfrom(serverFileDescriptor, &userList, sizeof(Packet), 0,
+                         (struct sockaddr *)&server_chat_address, &addressLength);
+
+    if (bytes <= 0)
+    {
+        exit(EXIT_FAILURE);
+    }
+
     build_user_interface();
 
-    // Initialize shared data
     SharedData shared_data;
-    memset(&shared_data, 0, sizeof(shared_data)); // Initialize shared data structure
-    shared_data.mutex = &message_mutex;           // Use the global mutex
 
-    // Create thread data structure to pass both sockFileDescriptor and shared_data
-    ThreadData thread_data = {sockFileDescriptor, &shared_data};
+    memset(&shared_data, 0, sizeof(shared_data));
 
-    // Create the thread to receive messages
+    shared_data.mutex = &message_mutex;
+
+    ThreadData thread_data = {
+        .sockFileDescriptor = sockFileDescriptor,
+        .shared_data = &shared_data,
+        .chatFileDescriptor = serverFileDescriptor
+        };
+
     pthread_t receiver_thread;
 
     if (pthread_create(&receiver_thread, NULL, receive_messages, &thread_data) != 0)
@@ -306,24 +384,47 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    // Draw initial windows
-    draw_message_window(msg_win, shared_data.messages, shared_data.message_count);
-    draw_input_window(input_win, "> ");
-    draw_active_users_window(active_users_win);
+    pthread_t userlist_thread;
 
-    // Main chat interaction loop
+    if (pthread_create(&userlist_thread, NULL, receive_active_users, &thread_data) != 0)
+    {
+         perror("Failed to create the thread \n");
+         exit(EXIT_FAILURE);
+    }
+
+    pthread_t userlist_interface_thread;
+
+    if (pthread_create(&userlist_interface_thread, NULL, repaint_userlist_screen, &shared_data) != 0)
+    {
+        perror("Failed to create the thread \n");
+        exit(EXIT_FAILURE);
+    }
+
+    draw_message_window(msg_win, shared_data.messages, shared_data.message_count);
+
+    draw_input_window(input_win, "> ");
+
+    draw_active_users_window(active_users_win, userList.data);
+
     while (1)
     {
-        char input[MAX_MESSAGE_LENGTH] = ""; // Clear input buffer
-        echo();                              // Allow input to be displayed on screen
+        char input[MAX_MESSAGE_LENGTH] = "";
+        echo();
 
-        // Move the cursor just after the prompt
-        mvwgetnstr(input_win, 1, 3, input, MAX_MESSAGE_LENGTH - 1); // Get user input
-        noecho();                                                   // Disable input echoing after user types
+        mvwgetnstr(input_win, 1, 3, input, MAX_MESSAGE_LENGTH - 1);
 
-        // If user types "exit", break the loop
+        noecho();
+
         if (strcmp(input, "exit") == 0)
         {
+            Packet exitPacket;
+
+            exitPacket.type = 5;
+
+            strncpy(exitPacket.data, username, sizeof(exitPacket.data));
+
+            sendPacket(serverFileDescriptor, &server_chat_address, &exitPacket);
+
             break;
         }
 
@@ -358,18 +459,20 @@ int main(int argc, char *argv[])
             message.is_private = 0;
         }
 
-        // Send the message to the multicast address
         sendto(sockFileDescriptor, &message, sizeof(message), 0, (struct sockaddr *)&multicastAddress, sizeof(multicastAddress));
 
         draw_input_window(input_win, "> ");
     }
 
-    // Clean up and close
-    pthread_cancel(receiver_thread); // Cancel the receiver thread
+    pthread_cancel(receiver_thread);
 
     pthread_cancel(user_interface_thread);
 
-    close(sockFileDescriptor); // Close the socket
+    pthread_cancel(userlist_thread);
+    
+    pthread_cancel(userlist_interface_thread);
+
+    close(sockFileDescriptor);
 
     endwin();
 

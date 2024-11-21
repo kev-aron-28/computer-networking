@@ -13,7 +13,7 @@
 
 typedef struct
 {
-  char users[10][100];
+  char users[MAX_USERS][100];
   size_t total_users;
   pthread_mutex_t lock;
 } UserList;
@@ -31,11 +31,13 @@ void saveUsername(const char *username)
     return;
   }
 
-  strncpy(users.users[users.total_users], username, strlen(username) - 1);
+  printf("Username: %s\n", username);
+
+  strncpy(users.users[users.total_users], username, strlen(username));
   users.users[users.total_users][strlen(username)] = '\0';
   users.total_users++;
 
-  printf("USER REGISTERED \n");
+  printf("USER REGISTERED\n");
 
   pthread_mutex_unlock(&users.lock);
 }
@@ -47,21 +49,50 @@ void sendUserList(int sockfd, struct sockaddr_in *clientAddress)
   Packet userListPacket = {0};
   userListPacket.type = 4; // Type 4 for user list response
 
-  // Prepare user list as a comma-separated string
   char userList[BUFFER_SIZE] = "";
   for (size_t i = 0; i < users.total_users; i++)
   {
     strncat(userList, users.users[i], sizeof(userList) - strlen(userList) - 1);
     if (i < users.total_users - 1)
     {
-      strncat(userList, ", ", sizeof(userList) - strlen(userList) - 1);
+      strncat(userList, ",", sizeof(userList) - strlen(userList) - 1);
     }
   }
+
+  printf("User list: %s\n", userList);
 
   strncpy(userListPacket.data, userList, sizeof(userListPacket.data) - 1);
   pthread_mutex_unlock(&users.lock);
 
-  sendPacket(sockfd, clientAddress, &packet);
+  sendPacket(sockfd, clientAddress, &userListPacket);
+}
+
+void deleteUsername(const char *username)
+{
+  pthread_mutex_lock(&users.lock);
+
+  int found = 0;
+  for (size_t i = 0; i < users.total_users; i++)
+  {
+    if (strcmp(users.users[i], username) == 0)
+    {
+      found = 1;
+      for (size_t j = i; j < users.total_users - 1; j++)
+      {
+        strncpy(users.users[j], users.users[j + 1], sizeof(users.users[j]));
+      }
+      users.total_users--;
+      printf("USER DELETED: %s\n", username);
+      break;
+    }
+  }
+
+  if (!found)
+  {
+    printf("User not found: %s\n", username);
+  }
+
+  pthread_mutex_unlock(&users.lock);
 }
 
 void handleRequest(int sockfd, struct sockaddr_in *clientAddress)
@@ -83,17 +114,16 @@ void handleRequest(int sockfd, struct sockaddr_in *clientAddress)
   {
   case 1: // Type 1 for username registration
     saveUsername(packet.data);
-
-    // Send acknowledgment
-    Packet ack = {0};
-    ack.sequenceNumber = packet.sequenceNumber;
-    ack.type = 2; // Type 2 for acknowledgment
-
-    sendto(sockfd, &ack, sizeof(Packet), 0, (struct sockaddr *)clientAddress, addressLength);
+    sendUserList(sockfd, clientAddress);
     break;
 
   case 3: // Type 3 for user list request
     sendUserList(sockfd, clientAddress);
+    break;
+
+  case 5: // Type 5 for delete user request
+    deleteUsername(packet.data);
+    sendUserList(sockfd, clientAddress); // Send updated user list after deletion
     break;
 
   default:
