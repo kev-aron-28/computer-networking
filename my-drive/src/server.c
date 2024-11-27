@@ -74,7 +74,7 @@ void handleRequest(int sockfd, struct sockaddr_in *serverAddress)
       receiveFile(sockfd, serverAddress, FILE_DIR);
       break;
 
-    case PACKET_TYPE_DELETE: // New case for deleting files
+    case PACKET_TYPE_DELETE:
     {
       char filePath[500];
       snprintf(filePath, sizeof(filePath), "%s/%s", FILE_DIR, packet.data);

@@ -116,25 +116,13 @@ void printBoard(Game *game)
     printf("%d ", i);
     for (int j = 0; j < game->width; j++)
     {
-      if (game->board[i][j].isRevealed)
-      {
-        printf("%d\t", game->board[i][j].totalNeighborMines);
-      }
-      else if (game->board[i][j].isMarked)
-      {
-        printf("<|>\t");
-      }
-      else if(game->board[i][j].isMine) {
-        printf("M\t");
-      }
-      else
-      {
-        printf(".\t");
-      }
+      printf("%d\t", game->board[i][j].totalNeighborMines);
     }
     printf("\n");
   }
 }
+
+
 
 char *serializeBoard(Game *game)
 {

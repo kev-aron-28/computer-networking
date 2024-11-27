@@ -76,11 +76,6 @@ int main(int argc, char *argv[])
         // Send the file deletion request
         sendDeleteRequest(sockfd, &serverAddr, argv[2]);
     }
-    else if (strcmp(argv[1], "list") == 0)
-    {
-        // Send the request to list files
-        sendListRequest(sockfd, &serverAddr);
-    }
     else
     {
         printf("Invalid arguments\n");
