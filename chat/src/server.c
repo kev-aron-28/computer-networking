@@ -123,9 +123,14 @@ void handleRequest(int sockfd, struct sockaddr_in *clientAddress)
 
   case 5: // Type 5 for delete user request
     deleteUsername(packet.data);
+    
     sendUserList(sockfd, clientAddress); // Send updated user list after deletion
+    
     break;
+  case 6:
+    receiveFile(sockfd, clientAddress, "server_files");
 
+    break;
   default:
     fprintf(stderr, "Unknown packet type received: %d\n", packet.type);
     break;

@@ -7,10 +7,10 @@
 #include <unistd.h>
 #include <netinet/in.h>
 #include <protocol.h>
-#include <pthread.h> // For threading and mutex
+#include <pthread.h>
 
 #define MAX_MESSAGE_LENGTH 300
-#define MAX_MESSAGES 100 // Maximum capacity of the message history
+#define MAX_MESSAGES 100
 #define MULTICAST_GROUP "239.0.0.1"
 #define MULTICAST_PORT 12345
 #define PORT 8080
@@ -22,6 +22,7 @@ typedef struct
     char username[100];
     int is_private;
     char username_sento[100];
+    int is_file;
 } Message;
 
 typedef struct
@@ -36,13 +37,15 @@ typedef struct
 {
     int sockFileDescriptor;
     int chatFileDescriptor;
+    int filesFileDescriptor;
     SharedData *shared_data;
+    int isFileSending;
 } ThreadData;
 
 WINDOW *msg_win;
 WINDOW *input_win;
 WINDOW *active_users_win;
-struct sockaddr_in multicastAddress, serverAddress;
+struct sockaddr_in multicastAddress, serverAddress, multicastFileAddress;
 struct sockaddr_in server_chat_address;
 
 char *username;
@@ -52,7 +55,9 @@ pthread_mutex_t message_mutex = PTHREAD_MUTEX_INITIALIZER;
 void draw_active_users_window(WINDOW *active_users_win, const char *users)
 {
     werase(active_users_win);
+
     box(active_users_win, 0, 0);
+    
     mvwprintw(active_users_win, 1, 1, "Active Users");
 
     mvwprintw(active_users_win, 2, 1, "%s", users);
@@ -62,27 +67,28 @@ void draw_active_users_window(WINDOW *active_users_win, const char *users)
 
 void draw_input_window(WINDOW *input_win, const char *prompt)
 {
-    werase(input_win); // Clear the input window
+    werase(input_win);
+
     box(input_win, 0, 0);
+    
     mvwprintw(input_win, 1, 1, "%s", prompt);
+    
     wrefresh(input_win);
 }
 
 void draw_message_window(WINDOW *msg_win, Message messages[MAX_MESSAGES], int message_count)
 {
     int height, width;
-    getmaxyx(msg_win, height, width); // Get the size of the message window
+    getmaxyx(msg_win, height, width);
 
-    wclear(msg_win);    // Clear the message window
-    box(msg_win, 0, 0); // Draw border around the message window
+    wclear(msg_win);
+    box(msg_win, 0, 0);
     mvwprintw(msg_win, 1, 1, "Chat Messages");
 
-    int visible_messages = height - 3; // Calculate visible messages (height minus header and border)
+    int visible_messages = height - 3;
 
-    // Determine where to start displaying messages if there are more messages than can fit
     int start = message_count > visible_messages ? message_count - visible_messages : 0;
 
-    // Display the visible messages
     for (int i = start; i < message_count; i++)
     {
         if (messages[i].is_private)
@@ -106,15 +112,12 @@ void *receive_messages(void *arg)
 
     SharedData *shared_data = data->shared_data;
 
-    struct sockaddr_in serverAddress;
-
-    Message received_message; // To hold the received message struct
+    Message received_message;
 
     socklen_t addressLength = sizeof(serverAddress);
 
     while (1)
     {
-        // Receive the full Message struct
         int bytes = recvfrom(sockFileDescriptor, &received_message, sizeof(received_message), 0,
                              (struct sockaddr *)&serverAddress, &addressLength);
 
@@ -122,26 +125,27 @@ void *receive_messages(void *arg)
         {
             perror("RECEIVING FAILED");
             continue;
-        }
+        } 
 
-        // Add the new message to the message history if its global or private to you
+        if(received_message.is_file) {
+            continue;
+        }
 
         if (!received_message.is_private || (received_message.is_private && strcmp(received_message.username_sento, username)) == 0)
         {
             if (shared_data->message_count < MAX_MESSAGES)
             {
-                // Copy the received message struct into the shared message history
                 shared_data->messages[shared_data->message_count] = received_message;
+
                 shared_data->message_count++;
             }
             else
             {
-                // Shift the messages to make space for the new one
                 for (int i = 1; i < MAX_MESSAGES; i++)
                 {
                     shared_data->messages[i - 1] = shared_data->messages[i];
                 }
-                // Add the new message at the end
+
                 shared_data->messages[MAX_MESSAGES - 1] = received_message;
             }
         }
@@ -297,7 +301,6 @@ int start_chat_server()
     int sockfd;
     socklen_t addressLength = sizeof(server_chat_address);
 
-    // Create a UDP socket
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
     {
         perror("Failed to create socket");
@@ -365,8 +368,8 @@ int main(int argc, char *argv[])
     ThreadData thread_data = {
         .sockFileDescriptor = sockFileDescriptor,
         .shared_data = &shared_data,
-        .chatFileDescriptor = serverFileDescriptor
-        };
+        .chatFileDescriptor = serverFileDescriptor,
+    };
 
     pthread_t receiver_thread;
 
@@ -428,7 +431,7 @@ int main(int argc, char *argv[])
             break;
         }
 
-        Message message = {.is_private = 0};
+        Message message = { .is_private = 0 };
 
         strncpy(message.username, username, sizeof(message.username) - 1);
 
@@ -447,16 +450,36 @@ int main(int argc, char *argv[])
                 strncpy(message.message, space_position + 1, sizeof(message.message) - 1);
 
                 message.is_private = 1;
+
+                message.is_file = 0;
             }
             else
             {
                 continue;
             }
         }
+        else if(input[0] == '#') {
+            char *space_position = strchr(input, ' ');
+
+            message.is_private = 0;
+
+            strncpy(message.message, "Sending file", sizeof(message.message) - 1);
+
+            Packet sendFilePacket;
+
+            sendFilePacket.type = 6;
+
+            sendPacket(serverFileDescriptor, &server_chat_address, &sendFilePacket);
+
+            sendFile(serverFileDescriptor, &server_chat_address, "test.txt");
+        }
         else
         {
             strncpy(message.message, input, sizeof(message.message) - 1);
+
             message.is_private = 0;
+
+            message.is_file = 0;
         }
 
         sendto(sockFileDescriptor, &message, sizeof(message), 0, (struct sockaddr *)&multicastAddress, sizeof(multicastAddress));

@@ -39,8 +39,10 @@ void sendAck(int socketFileDescriptor, struct sockaddr_in *clientAddr, int ackNu
 
 void sendFile(int sockfd, struct sockaddr_in *clientAddress, const char *fileName) {
     FILE *file = fopen(fileName, "rb");
+
     if (!file) {
         perror("Failed to open file");
+    
         return;
     }
 
@@ -135,11 +137,13 @@ void receiveFile(int sockfd, struct sockaddr_in *clientAddress, const char *outp
                                      (struct sockaddr *)clientAddress, &addressLength);
         if (bytesReceived <= 0) {
             perror("Failed to receive packet");
+
             continue;
         }
 
         if (packet.type == PACKET_TYPE_END) {
             printf("File transfer complete\n");
+            
             break;  // Stop receiving packets once EOF is received
         }
 
