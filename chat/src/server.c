@@ -112,24 +112,32 @@ void handleRequest(int sockfd, struct sockaddr_in *clientAddress)
 
   switch (packet.type)
   {
-  case 1: // Type 1 for username registration
+  case 1:
     saveUsername(packet.data);
     sendUserList(sockfd, clientAddress);
+    
     break;
-
-  case 3: // Type 3 for user list request
+  case 3:
     sendUserList(sockfd, clientAddress);
+    
     break;
-
-  case 5: // Type 5 for delete user request
+  case 5:
     deleteUsername(packet.data);
     
-    sendUserList(sockfd, clientAddress); // Send updated user list after deletion
+    sendUserList(sockfd, clientAddress);
     
     break;
   case 6:
     receiveFile(sockfd, clientAddress, "server_files");
 
+    break;
+  case 7:
+    char filename[BUFFER_SIZE];
+
+    snprintf(filename, sizeof(filename), "%s/%s", "server_files", packet.data);
+
+    sendFile(sockfd, clientAddress, filename);
+    
     break;
   default:
     fprintf(stderr, "Unknown packet type received: %d\n", packet.type);

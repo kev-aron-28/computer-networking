@@ -15,6 +15,7 @@
 #define MULTICAST_PORT 12345
 #define PORT 8080
 #define SERVER_IP "127.0.0.1"
+#define INPUTDIR "files"
 
 typedef struct
 {
@@ -463,15 +464,40 @@ int main(int argc, char *argv[])
 
             message.is_private = 0;
 
-            strncpy(message.message, "Sending file", sizeof(message.message) - 1);
+            snprintf(message.message, sizeof(message.message), "Sending file %s", space_position + 1);
 
             Packet sendFilePacket;
 
             sendFilePacket.type = 6;
 
+            char filePath[BUFFER_SIZE];
+
+            snprintf(filePath, BUFFER_SIZE, "%s", space_position + 1);
+
             sendPacket(serverFileDescriptor, &server_chat_address, &sendFilePacket);
 
-            sendFile(serverFileDescriptor, &server_chat_address, "test.txt");
+            sendFile(serverFileDescriptor, &server_chat_address, filePath);
+        }
+        else if(input[0] == '|') {
+            char *space_position = strchr(input, ' ');
+
+            message.is_private = 1;
+
+            strncpy(message.username_sento, username, strlen(username));
+
+            message.username_sento[strlen(username)] = '\0';
+
+            snprintf(message.message, sizeof(message.message), "Download file %s", space_position + 1);
+
+            Packet downloadPacket;
+
+            downloadPacket.type = 7;
+
+            snprintf(downloadPacket.data, BUFFER_SIZE, "%s", space_position + 1);
+
+            sendPacket(serverFileDescriptor, &server_chat_address, &downloadPacket);
+
+            receiveFile(serverFileDescriptor, &server_chat_address, "downloads");
         }
         else
         {

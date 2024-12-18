@@ -47,22 +47,28 @@ void sendFile(int sockfd, struct sockaddr_in *clientAddress, const char *fileNam
     }
 
     socklen_t addressLength = sizeof(*clientAddress);
+   
     printf("BEGIN TO SEND FILE: %s\n", fileName);
 
     // Send filename packet first
     Packet filenamePacket = {.type = PACKET_TYPE_FILENAME, .sequenceNumber = 0};
+    
     snprintf(filenamePacket.data, PACKET_SIZE, "%s", fileName);
+    
     sendPacket(sockfd, clientAddress, &filenamePacket);
+    
     printf("Filename packet sent: %s\n", fileName);
 
-    //SLIDING WINDOW - GO BACK N
-
     int basePointer = 0, nextSequenceNumber = 0;
+
     Packet window[WINDOW_SIZE];
+
     int ack[MAX_PACKETS] = {0};
+
     struct timeval timeout = {TIMEOUT, 0};  // Timeout structure
 
     int bytesRead;
+
     while (1) {
         // Send packets in the window
         while (nextSequenceNumber < basePointer + WINDOW_SIZE) {
