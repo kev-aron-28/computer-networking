@@ -37,7 +37,7 @@ void parse_request(const char *request, http_header *header)
     fprintf(stderr, "Invalid request: missing request line\n");
     free(requestCopy);
     return;
-  }
+  }  
   sscanf(requestLine, "%s %s %s", header->method, header->path, header->version);
 
   char *queryStart = strchr(header->path, '?');
@@ -161,6 +161,8 @@ void *pool_worker(void *arg)
 
     init_http_header(&header);
 
+    printf("BUFFER: %s/n", buffer);
+
     parse_request(buffer, &header);
 
     char file_path[1024] = "public";
@@ -191,6 +193,18 @@ void *pool_worker(void *arg)
       if (strcmp(header.method, "POST") == 0)
       {
         printf("Received POST request with body: %s\n", header.body);
+      }
+
+      if(strcmp(header.method, "DELETE") == 0) {
+        printf("Received DELETE request");
+      }
+
+      if(strcmp(header.method, "PUT") == 0) {
+        printf("Received PUT request with body: %s\n", header.body);
+      }
+
+      if(strcmp(header.method, "HEAD") == 0) {
+        printf("Received HEAD request \n");
       }
 
       if (strlen(header.query) > 0)
@@ -323,7 +337,7 @@ int start_server(server_instance *instance)
       continue;
     }
 
-    thread_task task = {.task_status = active, .descriptor = connection_descriptor};
+    thread_task task = { .task_status = active, .descriptor = connection_descriptor};
 
     if (pool_add_task(&pool, &task) != 0)
     {
@@ -341,7 +355,7 @@ int start_server(server_instance *instance)
 int main(int argc, char const *argv[])
 {
 
-  server_instance http = init_instance(8080);
+  server_instance http = init_instance(3000);
 
   start_server(&http);
 
