@@ -1,0 +1,4 @@
+Time taken: 95.00 seconds
+Time taken: 751.00 seconds
+Time taken: 14.00 seconds
+Time taken: 146.00 seconds
