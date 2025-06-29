@@ -1,0 +1,2 @@
+gcc ping_clone.c -o ping_clone
+sudo ./ping_clone google.com 10
