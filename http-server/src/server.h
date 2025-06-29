@@ -39,7 +39,8 @@ typedef struct
   char version[16];
   char host[256];
   char query[1024];
-  char body[8192];
+  char *body;
+  char content_type[256];
 } http_header;
 
 typedef struct
